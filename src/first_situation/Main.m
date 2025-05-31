@@ -17,6 +17,12 @@ goal_y = 12;
 robot_x = 6;
 robot_y = 0;
 obstacle_velocity = [0.035; 0];
+% ゴールの移動に関するパラメータ
+goal_velocity = [0.07; 0];  % ゴールの移動速度（ロボットより遅い速度）
+goal_min_x = 0;            % ゴールのX座標の最小値
+goal_max_x = 12;            % ゴールのX座標の最大値
+goal_direction = 1;        % ゴールの移動方向（1: 右方向、-1: 左方向）
+
 %横向き
 obstacle_left_x = 3;   % 障害物の左辺のx座標
 obstacle_right_x = 5;   % 障害物の右辺のx座標
@@ -425,6 +431,29 @@ while norm([robot_x,robot_y]-[goal_x,goal_y])>0.10 %ロボットが目的地に�
     plot(initial_robot_x, initial_robot_y, 'bo'); % スタート
 
     plot(robot_x, robot_y, 'bo'); % robot
+
+    % ゴールの位置を更新する処理を追加
+    % ゴールの位置を更新
+    goal_x = goal_x + goal_velocity(1) * goal_direction;
+
+    % ゴールが範囲外に出たら方向を反転
+    if goal_x >= goal_max_x
+      goal_direction = -1;
+    elseif goal_x <= goal_min_x
+      goal_direction = 1;
+    end
+
+    % マップを再描画
+    show(occupancy_map);
+
+    % 軌跡や目標位置の描画などの処理
+    hold on;
+    plot(robot_trajectory(:,1), robot_trajectory(:,2), 'b');
+    plot(goal_x, goal_y, 'ro'); % ゴール
+    plot(initial_robot_x, initial_robot_y, 'bo'); % スタート
+    plot(robot_x, robot_y, 'bo'); % robot
+
+    drawnow;
   end
 
   drawnow;
