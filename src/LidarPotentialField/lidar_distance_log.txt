@@ -1,0 +1,9 @@
+Time(s), Distance(m)
+Time: 0.00 s, Distance to obstacle: 3.89 m
+Time: 1.00 s, Distance to obstacle: 3.40 m
+Time: 2.00 s, Distance to obstacle: 2.91 m
+Time: 3.00 s, Distance to obstacle: 2.39 m
+Time: 4.00 s, Distance to obstacle: 1.90 m
+Time: 5.00 s, Distance to obstacle: 1.40 m
+Time: 6.00 s, Distance to obstacle: 0.89 m
+Time: 7.00 s, Distance to obstacle: 0.40 m
