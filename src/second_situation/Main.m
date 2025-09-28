@@ -33,8 +33,8 @@ ob_velocity = [0; -0.035];
 %縦の確認用
 x1 = 5;   % 障害物の左辺のx座標
 x2 = 7;   % 障害物の右辺のx座標
-y1 = 7;   % 障害物の底辺のy座標
-y2 = 9;   % 障害物の上辺のy座標
+y1 = 10;   % 障害物の底辺のy座標
+y2 = 12;   % 障害物の上辺のy座標
 
 dx_tmp = 0;
 dy_tmp = 0;
@@ -101,14 +101,14 @@ y5 = y3:0.01:y4;
 
 ob = [x, x2.*ones(size(y)), fliplr(x), x1.*ones(size(y)); y1.*ones(size(x)), y, y2.*ones(size(x)), fliplr(y)];
 ob2_mv = ob; %障害物が動いているかの判定　and　1つ後の動的障害物の出力に使う
-ob5 = [x5, x4.*ones(size(y5)), fliplr(x5), x3.*ones(size(y5)); y3.*ones(size(x5)), y5, y4.*ones(size(x5)), fliplr(y5)];
+% ob5 = [x5, x4.*ones(size(y5)), fliplr(x5), x3.*ones(size(y5)); y3.*ones(size(x5)), y5, y4.*ones(size(x5)), fliplr(y5)];
 
 
 
 
 %マップに障害物を割り当て（map, 障害物[転置(.')してn行２列にしている],確率占有値[?][0で消える、１で追加できる]）
 setOccupancy(map,ob.',1);
-setOccupancy(map,ob5.',1);
+% setOccupancy(map,ob5.',1);
 
 g = [mx,my];%ロボットの軌跡
 show(map); %mapの描画
