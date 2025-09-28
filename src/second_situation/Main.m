@@ -63,9 +63,7 @@ new_y1 = 0;
 % 加速度計算用の変数を初期化
 prev_ob_pos = [];
 prev_ob_velocity = [0; 0];
-acceleration_log = fopen('obstacle_acceleration_log.txt', 'w');
 time_step = 1; % サンプリング間隔（1サンプルごとに1とする）
-fprintf(acceleration_log, 'time, ax, ay\n');
 
 %距離センサ生成
 [rb1, rb2, rb3, rb4, rb5] = createSensors();
@@ -298,7 +296,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
       ob_mv = ob + ob_velocity * time_step; %障害物を動かす
 
       % 加速度を計算
-      [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time, acceleration_log);
+      [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time);
 
       ob2_mv_velocity = ob_mv - ob;
       ob3_mv = ob2_mv; %1つあとの障害物の座標
@@ -645,7 +643,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
 
 
       % 加速度を計算
-      [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time, acceleration_log);
+      [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time);
 
       ob2_mv_velocity = ob_mv - ob;
       ob3_mv = ob2_mv; %1つあとの障害物の座標
@@ -1286,7 +1284,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
 
 
   % 加速度を計算
-  [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time, acceleration_log);
+  [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time);
 
   %現時点の障害物の位置を保存
 
@@ -1312,8 +1310,6 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
   drawnow;
   disp(flag_rb);
 end
-% ループ終了後にファイルを閉じる
-fclose(acceleration_log);
 time
 
 

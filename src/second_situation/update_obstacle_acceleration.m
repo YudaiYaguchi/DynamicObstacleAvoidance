@@ -1,5 +1,4 @@
-function [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time, acceleration_log)
-% この関数は障害物の加速度を計算し、ログに記録します
+function [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time)
 %
 % 入力:
 %   ob_mv: 移動後の障害物座標
@@ -16,8 +15,6 @@ function [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, p
 current_ob_pos = [mean(ob_mv(1,:)); mean(ob_mv(2,:))];
 if ~isempty(prev_ob_pos)
   [accel_x, accel_y] = calculate_obstacle_acceleration(current_ob_pos, prev_ob_pos, time_step, prev_ob_velocity);
-  fprintf('Obstacle Acceleration: ax = %f, ay = %f\n', accel_x, accel_y);
-  fprintf(acceleration_log, '%d, %f, %f\n', time, accel_x, accel_y);
 
   % 速度を更新
   prev_ob_velocity(1) = (current_ob_pos(1) - prev_ob_pos(1)) / time_step;
