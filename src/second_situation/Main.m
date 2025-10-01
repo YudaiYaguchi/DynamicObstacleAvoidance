@@ -61,9 +61,9 @@ new_y1 = 0;
 
 
 % 加速度計算用の変数を初期化
+ob_acceleration = [0; -0.005]; % 障害物の加速度 (例: y方向に-0.005)
 prev_ob_pos = [];
 prev_ob_velocity = [0; 0];
-time_step = 1; % サンプリング間隔（1サンプルごとに1とする）
 steps = 2;     % Nステップ後の予測に使う
 dt = 1;
 
@@ -295,7 +295,11 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
         end
       end
 
-      ob_mv = ob + ob_velocity; %障害物を動かす
+      % 障害物の速度を更新
+      ob_velocity = ob_velocity + ob_acceleration * dt;
+
+      % 障害物の位置を更新
+      ob_mv = ob + ob_velocity * dt;
 
       % Nステップ後の障害物位置を予測
       [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
@@ -645,7 +649,11 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
         end
       end
 
-      ob_mv = ob + ob_velocity; %障害物を動かす
+      % 障害物の速度を更新
+      ob_velocity = ob_velocity + ob_acceleration * dt;
+
+      % 障害物の位置を更新
+      ob_mv = ob + ob_velocity * dt;
 
 
       % Nステップ後の障害物位置を予測
@@ -1288,13 +1296,15 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
     drawnow;
   end
 
-  %%%障害物を動かす
+  % 障害物の速度を更新
+  ob_velocity = ob_velocity + ob_acceleration * dt;
 
-  ob_mv = ob + ob_velocity; %障害物を動かす
+  % 障害物の位置を更新
+  ob_mv = ob + ob_velocity * dt;
 
   % Nステップ後の障害物の予測位置
   [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
-
+  
   % === 次回に使うため更新 ===
   prev_ob_pos = current_pos;
   prev_ob_velocity = current_velocity;
@@ -1318,7 +1328,6 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
   plot(dx, dy, 'ro'); % ゴール
   plot(mx1, my1, 'bo'); % スタート
   plot(mx, my, 'bo'); % robot
-  time_step = time_step + 0.05;
 
   drawnow;
   % disp(flag_rb);
