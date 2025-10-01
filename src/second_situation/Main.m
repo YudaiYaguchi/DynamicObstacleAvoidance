@@ -64,6 +64,8 @@ new_y1 = 0;
 prev_ob_pos = [];
 prev_ob_velocity = [0; 0];
 time_step = 1; % サンプリング間隔（1サンプルごとに1とする）
+steps = 2;     % Nステップ後の予測に使う
+dt = 1;
 
 %距離センサ生成
 [rb1, rb2, rb3, rb4, rb5] = createSensors();
@@ -293,10 +295,14 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
         end
       end
 
-      ob_mv = ob + ob_velocity * time_step; %障害物を動かす
+      ob_mv = ob + ob_velocity; %障害物を動かす
 
-      % 加速度を計算
-      [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time);
+      % Nステップ後の障害物位置を予測
+      [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
+
+      % === 次回に使うため更新 ===
+      prev_ob_pos = current_pos;
+      prev_ob_velocity = current_velocity;
 
       ob2_mv_velocity = ob_mv - ob;
       ob3_mv = ob2_mv; %1つあとの障害物の座標
@@ -321,7 +327,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
       y_2 = min(ob2_mv(2, :)); % ob2_mv の y の最小値
 
       [opf, ~, opa, ~] = Forecast_line(x_1, x_2, y_1, y_2);
-      [f_goal,~,tilt_goal] = Forecast_line(dx,mx,dy,my);
+      [f_goal,~,tilt_goal,~] = Forecast_line(dx,mx,dy,my);
 
       m1 = opa;        % 障害物の直線の傾き
       m2 = tilt_goal;  % ゴールとロボットを結ぶ直線の傾き
@@ -391,7 +397,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
             hr = -pi/2;%真下を向く
           end
         else        %ゴールとロボットのx座標が異なるとき
-          [f_goal,~,tilt_goal] = Forecast_line(dx,mx,dy,my);%ゴールとロボットを結ぶ直線を作る%f_goalゴールのy座標、tilt_goal傾き %目的x,現在x,目的y,現在y
+          [f_goal,~,tilt_goal,~] = Forecast_line(dx,mx,dy,my);%ゴールとロボットを結ぶ直線を作る%f_goalゴールのy座標、tilt_goal傾き %目的x,現在x,目的y,現在y
           if my < dy  %ゴールより下
             if tilt_goal < 0 %傾きが-(ゴールより右側)
               hr = pi + atan(tilt_goal);
@@ -639,11 +645,15 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
         end
       end
 
-      ob_mv = ob + ob_velocity * time_step; %障害物を動かす
+      ob_mv = ob + ob_velocity; %障害物を動かす
 
 
-      % 加速度を計算
-      [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time);
+      % Nステップ後の障害物位置を予測
+      [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
+
+      % === 次回に使うため更新 ===
+      prev_ob_pos = current_pos;
+      prev_ob_velocity = current_velocity;
 
       ob2_mv_velocity = ob_mv - ob;
       ob3_mv = ob2_mv; %1つあとの障害物の座標
@@ -876,7 +886,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
             hr = -pi/2;
           end
         else
-          [f_goal,~,tilt_goal] = Forecast_line(dx,mx,dy,my);%目的x,現在x,目的y,現在y
+          [f_goal,~,tilt_goal,~] = Forecast_line(dx,mx,dy,my);%目的x,現在x,目的y,現在y
           if my < dy
             if tilt_goal < 0
               hr = pi + atan(tilt_goal);
@@ -908,7 +918,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
         %[hr,g,o,o_tmp,mx,my,dx_tmp,dy_tmp,flag_d,time] = RunningAlongTheWall(flag_rb,o_tmp,hr,mx,my,dx,dy,g,o,rb1,rb2,rb3,rb4,rb5,map,time);
         data = 0;
 
-        [hr,g,o,o_tmp,mx,my,dx_tmp,dy_tmp,flag_d,time,ob] = GoBehindTheWall(flag_rb,o_tmp,hr,mx,my,dx,dy,g,o,rb1,rb2,rb3,rb4,rb5,map,time,data,ob_velocity,ob,mx1, my1)
+        [hr,g,o,o_tmp,mx,my,dx_tmp,dy_tmp,flag_d,time,ob] = GoBehindTheWall(flag_rb,o_tmp,hr,mx,my,dx,dy,g,o,rb1,rb2,rb3,rb4,rb5,map,time,data,ob_velocity,ob,mx1, my1);
         wo = 0.001;
         flag_d = 0;
         flag_rb = [0;0;0;0;0;0];
@@ -1172,7 +1182,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
           hr = -pi/2;%真下を向く
         end
       else        %ゴールとロボットのx座標が異なるとき
-        [f_goal,~,tilt_goal] = Forecast_line(dx,mx,dy,my);%ゴールとロボットを結ぶ直線を作る%f_goalゴールのy座標、tilt_goal傾き %目的x,現在x,目的y,現在y
+        [f_goal,~,tilt_goal,~] = Forecast_line(dx,mx,dy,my);%ゴールとロボットを結ぶ直線を作る%f_goalゴールのy座標、tilt_goal傾き %目的x,現在x,目的y,現在y
         if my < dy  %ゴールより下
           if tilt_goal < 0 %傾きが-(ゴールより右側)
             hr = pi + atan(tilt_goal);
@@ -1280,11 +1290,14 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
 
   %%%障害物を動かす
 
-  ob_mv = ob + ob_velocity * time_step; %障害物を動かす
+  ob_mv = ob + ob_velocity; %障害物を動かす
 
+  % Nステップ後の障害物の予測位置
+  [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
 
-  % 加速度を計算
-  [prev_ob_pos, prev_ob_velocity] = update_obstacle_acceleration(ob_mv, prev_ob_pos, prev_ob_velocity, time_step, time);
+  % === 次回に使うため更新 ===
+  prev_ob_pos = current_pos;
+  prev_ob_velocity = current_velocity;
 
   %現時点の障害物の位置を保存
 
@@ -1308,7 +1321,7 @@ while norm([mx,my]-[dx,dy])>0.10 %ロボットが目的地に着くまでルー�
   time_step = time_step + 0.05;
 
   drawnow;
-  disp(flag_rb);
+  % disp(flag_rb);
 end
 time
 
