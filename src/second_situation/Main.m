@@ -17,24 +17,24 @@ dx = 6;
 dy = 12;
 mx = 6;
 my = 0;
-% ob_velocity = [0.035; 0];
-% %横向き
-% x1 = 3;   % 障害物の左辺のx座標
-% x2 = 5;   % 障害物の右辺のx座標
-% y1 = 6;   % 障害物の底辺のy座標
-% y2 = 8;   % 障害物の上辺のy座標
+ob_velocity = [0.035; 0];
+%横向き
+x1 = 3;   % 障害物の左辺のx座標
+x2 = 5;   % 障害物の右辺のx座標
+y1 = 6;   % 障害物の底辺のy座標
+y2 = 8;   % 障害物の上辺のy座標
 
 % %縦
 % dx = 6;
 % dy = 12;
 % mx = 6;
 % my = 0;
-ob_velocity = [0; -0.035];
+% ob_velocity = [0; -0.035];
 %縦の確認用
-x1 = 5; % 障害物の左辺のx座標
-x2 = 7; % 障害物の右辺のx座標
-y1 = 10; % 障害物の底辺のy座標
-y2 = 12; % 障害物の上辺のy座標
+% x1 = 5; % 障害物の左辺のx座標
+% x2 = 7; % 障害物の右辺のx座標
+% y1 = 10; % 障害物の底辺のy座標
+% y2 = 12; % 障害物の上辺のy座標
 
 dx_tmp = 0;
 dy_tmp = 0;
@@ -60,11 +60,15 @@ new_x2 = 0;
 new_y1 = 0;
 
 % 加速度計算用の変数を初期化
-ob_acceleration = [0; -0.005]; % 障害物の加速度 (例: y方向に-0.005)
+ob_acceleration = [0.0010; -0.0000]; % 障害物の加速度 (例: y方向に-0.005)
+ob_prev = []; % 前回の障害物位置
 prev_ob_pos = [];
 prev_ob_velocity = [0; 0];
-steps = 2; % Nステップ後の予測に使う
+steps = 8; % Nステップ後の予測に使う
 dt = 1;
+
+% 予測した位置を保存する変数
+predicted_pos = [];
 
 %距離センサ生成
 [rb1, rb2, rb3, rb4, rb5] = createSensors();
@@ -99,6 +103,7 @@ x5 = x3:0.01:x4;
 y5 = y3:0.01:y4;
 
 ob = [x, x2 .* ones(size(y)), fliplr(x), x1 .* ones(size(y)); y1 .* ones(size(x)), y, y2 .* ones(size(x)), fliplr(y)];
+% ob = generate_moving_obstacle_from_params(time, x1, x2, y1, y2); %カーブを描く障害物
 ob2_mv = ob; %障害物が動いているかの判定　and　1つ後の動的障害物の出力に使う
 % ob5 = [x5, x4.*ones(size(y5)), fliplr(x5), x3.*ones(size(y5)); y3.*ones(size(x5)), y5, y4.*ones(size(x5)), fliplr(y5)];
 
@@ -107,6 +112,7 @@ setOccupancy(map, ob.', 1);
 % setOccupancy(map,ob5.',1);
 
 g = [mx, my]; %ロボットの軌跡
+figure(1);
 show(map); %mapの描画
 hold on %mapの固定
 plot(dx, dy, 'ro'); %ゴール
@@ -129,10 +135,16 @@ flag_rb = [0; 0; 0; 0; 0; 0]; %   左前　前　右前　左　右　どの方�
 %0角度変更なし、1予測線の描画。４角度を左へ、5角度を右へ、7特別な角度変更
 
 while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまでループ (2点間のユークリッド距離)
+    % --- カーブの動的障害物のとき ---
+    % ob = generate_moving_obstacle_from_params(time, x1, x2, y1, y2);
+    % setOccupancy(map, ob.', 1);
+    %     % --- 消去 ---
+    %     if ~isempty(ob_prev)
+    %         setOccupancy(map, ob_prev.', 0); % 前回描画した障害物を消去
+    %     end
 
     %　動的障害物と認識してからの動作
     if nnz(flag_rb) >= 2 && norm([mx, my] - [ob(1), ob(2)]) < 2.5 %センサが反応する位置で動的障害物と認識する(障害物の座標はここで与えられるものとする)
-
         while any(flag_rb == 1) %どれかのセンサに障害物が反応してる間ループ
 
             %ロボットの現在の状況把握
@@ -307,11 +319,18 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
             % 障害物の位置を更新
             ob_mv = ob + ob_velocity * dt;
 
+            last_point = ob_mv(:, end)';   % ← 転置して [1×2] ベクトルに
+            disp(last_point);
             % Nステップ後の障害物位置を予測
-            [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
+            if prev_ob_pos == current_pos
+                [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(last_point, prev_ob_pos, prev_ob_velocity, dt, steps);
+            else
+                [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(o, prev_ob_pos, prev_ob_velocity, dt, steps);
+            end
 
             % === 次回に使うため更新 ===
             prev_ob_pos = current_pos;
+            fprintf("😂😂😂どれかのセンサに障害物が反応している間のループ😂😂😂　prev_ob_pos:"); disp(current_pos);
             prev_ob_velocity = current_velocity;
 
             ob2_mv_velocity = ob_mv - ob;
@@ -325,6 +344,7 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
             setOccupancy(map, ob.', 0); %障害物を動かす前のobを消す
             setOccupancy(map, ob_mv.', 1); %障害物を動した後のobを追加する
 
+            ob_prev = ob_mv; % 次回消去するために現在の障害物位置を保存
             % マップを再描画
             show(map);
 
@@ -691,7 +711,7 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
             ob_mv = ob + ob_velocity * dt;
 
             % Nステップ後の障害物位置を予測
-            [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
+            [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(o, prev_ob_pos, prev_ob_velocity, dt, steps);
 
             % === 次回に使うため更新 ===
             prev_ob_pos = current_pos;
@@ -708,6 +728,7 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
             setOccupancy(map, ob.', 0); %障害物を動かす前のobを消す
             setOccupancy(map, ob_mv.', 1); %障害物を動した後のobを追加する
 
+            ob_prev = ob_mv; % 次回消去するために現在の障害物位置を保存
             % マップを再描画
             show(map);
 
@@ -1024,6 +1045,13 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
                     mx = mx + temp(1); %勾配ベクトル方向に進める
                     my = my + temp(2);
                     g = [g; mx, my];
+                    % o = [o; predicted_pos]; %予測した障害物の位置を障害物として追加
+                    fprintf('\n\n\n\ポテンシャル場を構築\n');
+                    fprintf('障害物の数：%d\n', size(o, 1));
+                    disp('障害物の座標：');
+                    disp(o);
+                    % error("障害物回避のの必要あり　勾配ベクトル上向き");
+                    fprintf('\n\n\n');
                     po = double(subs(grad(dx_tmp, dy_tmp, o, wo, wd), {x y}, {mx, my}));
                     time = time + 1;
                     plot(g(:, 1), g(:, 2), 'b');
@@ -1060,6 +1088,12 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
                     mx = mx + temp(1);
                     my = my + temp(2);
                     g = [g; mx, my];
+                    fprintf('\n\n\n\ポテンシャル場を構築\n');
+                    fprintf('障害物の数：%d\n', size(o, 1));
+                    disp('障害物の座標：');
+                    disp(o);
+                    % error("障害物回避のの必要あり　勾配ベクトル下向き");
+                    fprintf('\n\n\n')
                     po = double(subs(grad(dx, dy, o, wo, wd), {x y}, {mx, my}));
                     time = time + 1;
 
@@ -1293,7 +1327,6 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
                     else %傾きが0以上(ゴールより右側)
                         hr = pi + atan(tilt_goal);
                     end
-
                 end
 
             end
@@ -1339,6 +1372,12 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
                 mx = mx + temp(1); %勾配ベクトル方向に進める
                 my = my + temp(2);
                 g = [g; mx, my]; %gの末尾に移動先の座標を追加
+                fprintf('\n\n\n\ポテンシャル場を構築\n');
+                fprintf('障害物の数：%d\n', size(o, 1));
+                disp('障害物の座標：');
+                disp(o);
+                fprintf('\n\n\n')
+                % error('動的障害物検知　停止');
                 po = double(subs(grad(dx_tmp, dy_tmp, o, wo, wd), {x y}, {mx, my})); %勾配の再計算
                 time = time + 1; %時間を進める
                 plot(g(:, 1), g(:, 2), 'r'); %軌跡を描画
@@ -1377,6 +1416,19 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
                 mx = mx + temp(1);
                 my = my + temp(2);
                 g = [g; mx, my];
+                % o = [o; predicted_pos;]; %予測した障害物の位置を障害物として追加
+                fprintf('\n\n\nポテンシャル場を構築\n');
+                fprintf('障害物の数：%d\n', size(o, 1));
+                disp('予測障害物の座標：');
+                disp(predicted_pos);
+                disp('障害物の座標：');
+                disp(o);
+                if size(o,1) > 1
+                    % error("障害物回避の必要あり");
+                    fprintf('\n\n\n')
+                end
+
+                
                 po = double(subs(grad(dx, dy, o, wo, wd), {x y}, {mx, my}));
                 time = time + 1;
 
@@ -1403,7 +1455,7 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
     ob_mv = ob + ob_velocity * dt;
 
     % Nステップ後の障害物の予測位置
-    [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(ob_mv, prev_ob_pos, prev_ob_velocity, dt, steps);
+    [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(o, prev_ob_pos, prev_ob_velocity, dt, steps);
 
     % === 次回に使うため更新 ===
     prev_ob_pos = current_pos;
@@ -1414,6 +1466,7 @@ while norm([mx, my] - [dx, dy]) > 0.10 %ロボットが目的地に着くまで�
     setOccupancy(map, ob.', 0); %障害物を動かす前のobを消す
     setOccupancy(map, ob_mv.', 1); %障害物を動した後のobを追加する
 
+    ob_prev = ob_mv; % 次回消去するために現在の障害物位置を保存
     % マップを再描画
     show(map);
 

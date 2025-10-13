@@ -8,4 +8,8 @@ syms y;
     fy = wo * (diff(new1_o_p(x, y, o), y) + diff(o_p(x, y, o), y)) + wd * diff(new1_d_p(x, y, d_x, d_y), y);
     z=-[fx fy];
 
+    % --- 可視化処理を追加 ---
+    % if ~isempty(o)
+    %     visualize_potential_field(d_x, d_y, o, wo, wd);
+    % end
 end
