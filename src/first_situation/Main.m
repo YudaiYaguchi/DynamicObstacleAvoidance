@@ -1,27 +1,27 @@
 clear;
 % %斜め
-% goal_x = 11; %　ゴールの初期位置
-% goal_y = 11;
-% robot_x = -1; %　ロボットの初期位置
-% robot_y = -1;
-% obstacle_velocity = [0.035; -0.035];
-% %斜め障害物
-% obstacle_left_x = 2;   % 障害物の左辺のx座標
-% obstacle_right_x = 4;   % 障害物の右辺のx座標
-% obstacle_bottom_y = 8;   % 障害物の底辺のy座標
-% obstacle_top_y = 10;   % 障害物の上辺のy座標
+goal_x = 11; %　ゴールの初期位置
+goal_y = 11;
+robot_x = -1; %　ロボットの初期位置
+robot_y = -1;
+obstacle_velocity = [0.035; -0.035];
+%斜め障害物
+obstacle_left_x = -1;   % 障害物の左辺のx座標
+obstacle_right_x = 1;   % 障害物の右辺のx座標
+obstacle_bottom_y = 8;   % 障害物の底辺のy座標
+obstacle_top_y = 10;   % 障害物の上辺のy座標
 
-% %横
-goal_x = 6;
-goal_y = 12;
-robot_x = 6;
-robot_y = 0;
-obstacle_velocity = [0.035; 0];
-%横向き
-obstacle_left_x = 0; % 障害物の左辺のx座標
-obstacle_right_x = 2; % 障害物の右辺のx座標
-obstacle_bottom_y = 6; % 障害物の底辺のy座標
-obstacle_top_y = 8; % 障害物の上辺のy座標
+% % %横
+% goal_x = 6;
+% goal_y = 12;
+% robot_x = 6;
+% robot_y = 0;
+% obstacle_velocity = [0.035; 0];
+% %横向き
+% obstacle_left_x = 0; % 障害物の左辺のx座標
+% obstacle_right_x = 2; % 障害物の右辺のx座標
+% obstacle_bottom_y = 6; % 障害物の底辺のy座標
+% obstacle_top_y = 8; % 障害物の上辺のy座標
 
 %縦
 % goal_x = 6;
@@ -56,11 +56,11 @@ detection_counter = 0;
 data = 0;
 
 % 加速度計算用の変数を初期化
-obstacle_acceleration = [0.0040; 0.0000]; % 障害物の加速度 (例: y方向に-0.005)
+obstacle_acceleration = [0.0020; -0.0020]; % 障害物の加速度 (例: y方向に-0.005)
 ob_prev = []; % 前回の障害物位置
 prev_ob_pos = [];
 prev_ob_velocity = [0; 0];
-steps = 10; % Nステップ後の予測に使う
+steps = 20; % Nステップ後の予測に使う
 dt = 1;
 
 % 予測した位置を保存する変数
@@ -100,7 +100,7 @@ x = obstacle_left_x:0.01:obstacle_right_x; % x座標の範囲
 y = obstacle_bottom_y:0.01:obstacle_top_y; % y座標の範囲
 
 obstacle = [x, obstacle_right_x .* ones(size(y)), fliplr(x), obstacle_left_x .* ones(size(y));
-            obstacle_bottom_y .* ones(size(x)), y, obstacle_top_y .* ones(size(x)), fliplr(y)];
+    obstacle_bottom_y .* ones(size(x)), y, obstacle_top_y .* ones(size(x)), fliplr(y)];
 % new_obstacle = [x+6, obstacle_right_x.*ones(size(y))+6, fliplr(x)+6, obstacle_left_x.*ones(size(y))+6;
 %   (obstacle_bottom_y+2).*ones(size(x)), y+2, (obstacle_top_y+2).*ones(size(x)), fliplr(y)+2];
 
@@ -448,7 +448,7 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         else %通常の走行
             %勾配ベクトルに沿って進める
 
-            
+
             if ~isempty(detected_obstacles)
                 fprintf('\n\n--------------  detected_obstacles: --------------\n');
                 disp(detected_obstacles);
