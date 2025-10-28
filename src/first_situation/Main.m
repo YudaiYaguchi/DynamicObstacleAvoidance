@@ -66,6 +66,8 @@ dt = 1;
 % 予測した位置を保存する変数
 predicted_pos = [];
 
+h_predicted = []; % 前回の予測点プロットを保持
+
 %距離センサ生成
 range_sensor_1 = rangeSensor;
 range_sensor_2 = rangeSensor;
@@ -312,6 +314,16 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
 
         if all(~isnan(predicted_pos))
             detected_obstacles = [detected_obstacles; predicted_pos]; %予測した位置を障害物リストに追加
+
+            % 前回の予測点を削除
+            if ~isempty(h_predicted) && isvalid(h_predicted)
+                delete(h_predicted);
+            end
+
+            % 新しい予測位置を描画
+            h_predicted = plot(predicted_pos(:,1), predicted_pos(:,2), ...
+                'r-', ...       % 赤色の実線
+                'LineWidth', 2);% 太さ
         end
 
         % if ~isempty(detected_obstacles)
