@@ -13,23 +13,23 @@ clear;
 % obstacle_top_y = 10;   % 障害物の上辺のy座標
 
 % % %横
-goal_x = 6;
-goal_y = 12;
-robot_x = 6;
-robot_y = 0;
+% goal_x = 6;
+% goal_y = 12;
+% robot_x = 6;
+% robot_y = 0;
 
-obstacle_velocity = [0.36; 0];
-obstacle_acceleration = [-0.010; 0.0000]; % 障害物の加速度
-% obstacle_velocity = [0.055; 0];
-% obstacle_acceleration = [-0.0030; 0.0000]; % 障害物の加速度
-% obstacle_acceleration = [0.0040; 0.0000]; % 障害物の加速度
-%横向き
-% obstacle_left_x = 5; % 障害物の左辺のx座標
-% obstacle_right_x = 7; % 障害物の右辺のx座標
-obstacle_left_x = 0; % 障害物の左辺のx座標
-obstacle_right_x = 2; % 障害物の右辺のx座標
-obstacle_bottom_y = 6; % 障害物の底辺のy座標
-obstacle_top_y = 8; % 障害物の上辺のy座標
+% obstacle_velocity = [0.035; 0];
+% obstacle_acceleration = [0.0000; 0.0000]; % 障害物の加速度
+% % obstacle_velocity = [0.055; 0];
+% % obstacle_acceleration = [-0.0030; 0.0000]; % 障害物の加速度
+% % obstacle_acceleration = [0.0040; 0.0000]; % 障害物の加速度
+% %横向き
+% obstacle_left_x = 3; % 障害物の左辺のx座標
+% obstacle_right_x = 5; % 障害物の右辺のx座標
+% % obstacle_left_x = 0; % 障害物の左辺のx座標
+% % obstacle_right_x = 2; % 障害物の右辺のx座標
+% obstacle_bottom_y = 6; % 障害物の底辺のy座標
+% obstacle_top_y = 8; % 障害物の上辺のy座標
 
 %縦
 % goal_x = 6;
@@ -44,6 +44,25 @@ obstacle_top_y = 8; % 障害物の上辺のy座標
 % obstacle_bottom_y = 7;   % 障害物の底辺のy座標
 % obstacle_top_y = 9;   % 障害物の上辺のy座標
 
+% 障害物のが右斜め前からくる
+goal_x = 6;
+goal_y = 12;
+robot_x = 6;
+robot_y = 0;
+obstacle_velocity = [-0.035; -0.035];
+obstacle_acceleration = [-0.0030; -0.0015]; % 障害物の加速度
+% obstacle_acceleration = [-0.0000; -0.0000]; % 障害物の加速度
+%縦の確認用
+obstacle_left_x = 10;   % 障害物の左辺のx座標
+obstacle_right_x = 12;   % 障害物の右辺のx座標
+obstacle_bottom_y = 10;   % 障害物の底辺のy座標
+obstacle_top_y = 12;   % 障害物の上辺のy座標
+% obstacle_left_x = 7;   % 障害物の左辺のx座標
+% obstacle_right_x = 9;   % 障害物の右辺のx座標
+% obstacle_bottom_y = 7;   % 障害物の底辺のy座標
+% obstacle_top_y = 9;   % 障害物の上辺のy座標
+
+
 temp_goal_x = 0;
 temp_goal_y = 0;
 
@@ -54,7 +73,11 @@ detected_obstacles = []; %障害物検出点の格納用
 obstacle_detection_count = [0 0]; %障害物の検出数の格納用
 obstacle_weight = 0.05; % (斥力の重み) 大きくする → 斥力ベクトルの寄与が増え、進行方向がより障害物から離れる向きに回ります
 % obstacle_weight = 0.0001; %小さいほど小さなステップで進む。
+% 加速度がある時
 distance_weight = 25; % (引力の重み) 大きくする → 引力ベクトルの寄与が増え、進行方向がよりゴール直線方向に回ります
+% 加速度がない時
+% distance_weight = 100;
+
 point = [0 0];
 radius = 36;
 avoidance_flag = 0; %1:障害物回避が必要。　0:通常の走行状態（目的地にまっすぐ進む）

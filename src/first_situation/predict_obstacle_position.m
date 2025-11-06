@@ -17,7 +17,7 @@ function [current_pos, predicted_pos, current_velocity, current_acceleration] = 
         % どれか1つでも加速度がある
         steps = 20;
     else % すべてほぼ0 → 等速
-        steps = 150; % 障害物が目の前を通過する場合
+        steps = 50; % 障害物が目の前を通過する場合
     end
 
     if isempty(latest_obstacle)
