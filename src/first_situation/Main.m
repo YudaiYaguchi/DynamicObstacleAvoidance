@@ -1,27 +1,35 @@
 clear;
 % %斜め
-goal_x = 11; %　ゴールの初期位置
-goal_y = 11;
-robot_x = -1; %　ロボットの初期位置
-robot_y = -1;
-obstacle_velocity = [0.035; -0.035];
-%斜め障害物
-obstacle_left_x = -1;   % 障害物の左辺のx座標
-obstacle_right_x = 1;   % 障害物の右辺のx座標
-obstacle_bottom_y = 8;   % 障害物の底辺のy座標
-obstacle_top_y = 10;   % 障害物の上辺のy座標
+% goal_x = 11; %　ゴールの初期位置
+% goal_y = 11;
+% robot_x = -1; %　ロボットの初期位置
+% robot_y = -1;
+% obstacle_velocity = [0.035; -0.035];
+% obstacle_acceleration = [0.0020; -0.0020]; % 障害物の加速度 (例: y方向に-0.005)
+% %斜め障害物
+% obstacle_left_x = -1;   % 障害物の左辺のx座標
+% obstacle_right_x = 1;   % 障害物の右辺のx座標
+% obstacle_bottom_y = 8;   % 障害物の底辺のy座標
+% obstacle_top_y = 10;   % 障害物の上辺のy座標
 
 % % %横
-% goal_x = 6;
-% goal_y = 12;
-% robot_x = 6;
-% robot_y = 0;
-% obstacle_velocity = [0.035; 0];
-% %横向き
-% obstacle_left_x = 0; % 障害物の左辺のx座標
-% obstacle_right_x = 2; % 障害物の右辺のx座標
-% obstacle_bottom_y = 6; % 障害物の底辺のy座標
-% obstacle_top_y = 8; % 障害物の上辺のy座標
+goal_x = 6;
+goal_y = 12;
+robot_x = 6;
+robot_y = 0;
+
+obstacle_velocity = [0.36; 0];
+obstacle_acceleration = [-0.010; 0.0000]; % 障害物の加速度
+% obstacle_velocity = [0.055; 0];
+% obstacle_acceleration = [-0.0030; 0.0000]; % 障害物の加速度
+% obstacle_acceleration = [0.0040; 0.0000]; % 障害物の加速度
+%横向き
+% obstacle_left_x = 5; % 障害物の左辺のx座標
+% obstacle_right_x = 7; % 障害物の右辺のx座標
+obstacle_left_x = 0; % 障害物の左辺のx座標
+obstacle_right_x = 2; % 障害物の右辺のx座標
+obstacle_bottom_y = 6; % 障害物の底辺のy座標
+obstacle_top_y = 8; % 障害物の上辺のy座標
 
 %縦
 % goal_x = 6;
@@ -29,6 +37,7 @@ obstacle_top_y = 10;   % 障害物の上辺のy座標
 % robot_x = 6;
 % robot_y = 0;
 % obstacle_velocity = [0; -0.035];
+% obstacle_acceleration = [0.000; 0.0000]; % 障害物の加速度
 % %縦の確認用
 % obstacle_left_x = 5;   % 障害物の左辺のx座標
 % obstacle_right_x = 7;   % 障害物の右辺のx座標
@@ -43,9 +52,9 @@ initial_robot_y = robot_y;
 robot_heading = 0;
 detected_obstacles = []; %障害物検出点の格納用
 obstacle_detection_count = [0 0]; %障害物の検出数の格納用
-obstacle_weight = 0.05; %小さいほど小さなステップで進む。 初期値
+obstacle_weight = 0.05; % (斥力の重み) 大きくする → 斥力ベクトルの寄与が増え、進行方向がより障害物から離れる向きに回ります
 % obstacle_weight = 0.0001; %小さいほど小さなステップで進む。
-distance_weight = 300;
+distance_weight = 25; % (引力の重み) 大きくする → 引力ベクトルの寄与が増え、進行方向がよりゴール直線方向に回ります
 point = [0 0];
 radius = 36;
 avoidance_flag = 0; %1:障害物回避が必要。　0:通常の走行状態（目的地にまっすぐ進む）
@@ -56,12 +65,14 @@ detection_counter = 0;
 data = 0;
 
 % 加速度計算用の変数を初期化
-obstacle_acceleration = [0.0020; -0.0020]; % 障害物の加速度 (例: y方向に-0.005)
 ob_prev = []; % 前回の障害物位置
 prev_ob_pos = [];
 prev_ob_velocity = [0; 0];
-steps = 20; % Nステップ後の予測に使う
+prev_predicted_pos = [];
+% steps = 50; % Nステップ後の予測に使う
 dt = 1;
+isDynamicObstacleDetected = false;
+noDetectionTime = 0;
 
 % 予測した位置を保存する変数
 predicted_pos = [];
@@ -304,33 +315,47 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
 
     end
 
-
     if nnz(flag_rb) >= 1
-        latest_obstacle = obstacle(:, end)'; % ←ここで転置
+        isDynamicObstacleDetected = true;
+        noDetectionTime = 0;
+    elseif noDetectionTime > 10
+        isDynamicObstacleDetected = false;
+        detected_obstacles = [];
+    else
+        noDetectionTime = noDetectionTime + 1;
+    end
+    
+    if isDynamicObstacleDetected
+        % obstacleの各列とロボット位置との距離を計算
+        distances = sqrt((obstacle(1,:) - robot_x).^2 + (obstacle(2,:) - robot_y).^2);
+        % 最小距離のインデックスを取得
+        [~, min_idx] = min(distances);
+        % 最も近い障害物を取得（転置して行ベクトルにする）
+        latest_obstacle = obstacle(:, min_idx)';
+        % disp(latest_obstacle);
         % [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(detected_obstacles, prev_ob_pos, prev_ob_velocity, dt, steps,obstacle_velocity,obstacle_acceleration);
-        [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(latest_obstacle, prev_ob_pos, prev_ob_velocity, dt, steps, obstacle_velocity, obstacle_acceleration);
+        [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(latest_obstacle, prev_ob_pos, prev_predicted_pos,prev_ob_velocity, dt, obstacle_velocity, obstacle_acceleration);
         prev_ob_pos = current_pos;
         prev_ob_velocity = current_velocity;
-
+        prev_predicted_pos = predicted_pos;
         if all(~isnan(predicted_pos))
-            detected_obstacles = [detected_obstacles; predicted_pos]; %予測した位置を障害物リストに追加
-
+            % detected_obstacles = [detected_obstacles; predicted_pos]; %予測した位置を障害物リストに追加
+            detected_obstacles = predicted_pos;
             % 前回の予測点を削除
             if ~isempty(h_predicted) && isvalid(h_predicted)
                 delete(h_predicted);
             end
-
             % 新しい予測位置を描画
             h_predicted = plot(predicted_pos(:,1), predicted_pos(:,2), ...
                 'r-', ...       % 赤色の実線
                 'LineWidth', 2);% 太さ
         end
+    end
 
         % if ~isempty(detected_obstacles)
         %     display('detected_obstacles:');
         %     disp(detected_obstacles);
         % end
-    end
 
     %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%        kokomade        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -483,9 +508,9 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     plot(robot_trajectory(:, 1), robot_trajectory(:, 2), 'b'); %軌跡を描画
     drawnow;
 
-    if nnz(flag_rb) <= 1
-        detected_obstacles = [];
-    end
+    % if nnz(flag_rb) <= 1
+    %     detected_obstacles = [];
+    % end
 
     %%%障害物を動かす
     if move_flag == 1
