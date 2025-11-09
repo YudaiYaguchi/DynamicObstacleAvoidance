@@ -13,23 +13,23 @@ clear;
 % obstacle_top_y = 10;   % 障害物の上辺のy座標
 
 % % %横
-% goal_x = 6;
-% goal_y = 12;
-% robot_x = 6;
-% robot_y = 0;
+goal_x = 6;
+goal_y = 12;
+robot_x = 6;
+robot_y = 0;
 
-% obstacle_velocity = [0.035; 0];
+obstacle_velocity = [0.035; 0];
 % obstacle_acceleration = [0.0000; 0.0000]; % 障害物の加速度
-% % obstacle_velocity = [0.055; 0];
-% % obstacle_acceleration = [-0.0030; 0.0000]; % 障害物の加速度
-% % obstacle_acceleration = [0.0040; 0.0000]; % 障害物の加速度
-% %横向き
+% obstacle_velocity = [0.055; 0];
+% obstacle_acceleration = [-0.0030; 0.0000]; % 障害物の加速度
+obstacle_acceleration = [0.0040; 0.0000]; % 障害物の加速度
+%横向き
 % obstacle_left_x = 3; % 障害物の左辺のx座標
 % obstacle_right_x = 5; % 障害物の右辺のx座標
-% % obstacle_left_x = 0; % 障害物の左辺のx座標
-% % obstacle_right_x = 2; % 障害物の右辺のx座標
-% obstacle_bottom_y = 6; % 障害物の底辺のy座標
-% obstacle_top_y = 8; % 障害物の上辺のy座標
+obstacle_left_x = 0; % 障害物の左辺のx座標
+obstacle_right_x = 2; % 障害物の右辺のx座標
+obstacle_bottom_y = 5; % 障害物の底辺のy座標
+obstacle_top_y = 7; % 障害物の上辺のy座標
 
 %縦
 % goal_x = 6;
@@ -45,22 +45,22 @@ clear;
 % obstacle_top_y = 9;   % 障害物の上辺のy座標
 
 % 障害物のが右斜め前からくる
-goal_x = 6;
-goal_y = 12;
-robot_x = 6;
-robot_y = 0;
-obstacle_velocity = [-0.035; -0.035];
-obstacle_acceleration = [-0.0030; -0.0015]; % 障害物の加速度
-% obstacle_acceleration = [-0.0000; -0.0000]; % 障害物の加速度
-%縦の確認用
-obstacle_left_x = 10;   % 障害物の左辺のx座標
-obstacle_right_x = 12;   % 障害物の右辺のx座標
-obstacle_bottom_y = 10;   % 障害物の底辺のy座標
-obstacle_top_y = 12;   % 障害物の上辺のy座標
-% obstacle_left_x = 7;   % 障害物の左辺のx座標
-% obstacle_right_x = 9;   % 障害物の右辺のx座標
-% obstacle_bottom_y = 7;   % 障害物の底辺のy座標
-% obstacle_top_y = 9;   % 障害物の上辺のy座標
+% goal_x = 6;
+% goal_y = 12;
+% robot_x = 6;
+% robot_y = 0;
+% obstacle_velocity = [-0.035; -0.035];
+% obstacle_acceleration = [-0.0030; -0.0025]; % 障害物の加速度
+% % obstacle_acceleration = [-0.0000; -0.0000]; % 障害物の加速度
+% %縦の確認用
+% obstacle_left_x = 10;   % 障害物の左辺のx座標
+% obstacle_right_x = 12;   % 障害物の右辺のx座標
+% obstacle_bottom_y = 8;   % 障害物の底辺のy座標
+% obstacle_top_y = 10;   % 障害物の上辺のy座標
+% % obstacle_left_x = 7;   % 障害物の左辺のx座標
+% % obstacle_right_x = 9;   % 障害物の右辺のx座標
+% % obstacle_bottom_y = 7;   % 障害物の底辺のy座標
+% % obstacle_top_y = 9;   % 障害物の上辺のy座標
 
 
 temp_goal_x = 0;
@@ -69,7 +69,11 @@ temp_goal_y = 0;
 initial_robot_x = robot_x;
 initial_robot_y = robot_y;
 robot_heading = 0;
-detected_obstacles = []; %障害物検出点の格納用
+
+detected_obstacles = struct(...
+    'position', [], ...
+    'isDynamic', false );
+
 obstacle_detection_count = [0 0]; %障害物の検出数の格納用
 obstacle_weight = 0.05; % (斥力の重み) 大きくする → 斥力ベクトルの寄与が増え、進行方向がより障害物から離れる向きに回ります
 % obstacle_weight = 0.0001; %小さいほど小さなステップで進む。
@@ -94,7 +98,6 @@ prev_ob_velocity = [0; 0];
 prev_predicted_pos = [];
 % steps = 50; % Nステップ後の予測に使う
 dt = 1;
-isDynamicObstacleDetected = false;
 noDetectionTime = 0;
 
 % 予測した位置を保存する変数
@@ -133,17 +136,45 @@ occupancy_map.GridLocationInWorld = [-2 -2];
 x = obstacle_left_x:0.01:obstacle_right_x; % x座標の範囲
 y = obstacle_bottom_y:0.01:obstacle_top_y; % y座標の範囲
 
-obstacle = [x, obstacle_right_x .* ones(size(y)), fliplr(x), obstacle_left_x .* ones(size(y));
+% 障害物を構造体として定義
+obstacle_position = [x, obstacle_right_x .* ones(size(y)), fliplr(x), obstacle_left_x .* ones(size(y));
     obstacle_bottom_y .* ones(size(x)), y, obstacle_top_y .* ones(size(x)), fliplr(y)];
+
+obstacle = struct(...
+    'position', obstacle_position, ...
+    'isDynamic', true, ...
+    'velocity', obstacle_velocity, ...
+    'acceleration', obstacle_acceleration);
+
 % new_obstacle = [x+6, obstacle_right_x.*ones(size(y))+6, fliplr(x)+6, obstacle_left_x.*ones(size(y))+6;
 %   (obstacle_bottom_y+2).*ones(size(x)), y+2, (obstacle_top_y+2).*ones(size(x)), fliplr(y)+2];
 
+% 静的障害物（壁）の定義：ゴールから2m手前、横幅6m
+wall_left_x = 2.5;    % 壁の左端
+wall_right_x = 8.5;   % 壁の右端（横幅6m）
+wall_bottom_y = 9.01; % 壁の下端（goal_y=12から2m手前=10、厚み0.01m）
+wall_top_y = 9.00;   % 壁の上端
+
+x_wall = wall_left_x:0.01:wall_right_x;
+y_wall = wall_bottom_y:0.01:wall_top_y;
+
+wall_position = [x_wall, wall_right_x .* ones(size(y_wall)), fliplr(x_wall), wall_left_x .* ones(size(y_wall));
+    wall_bottom_y .* ones(size(x_wall)), y_wall, wall_top_y .* ones(size(x_wall)), fliplr(y_wall)];
+
+wall = struct(...
+    'position', wall_position, ...
+    'isDynamic', false, ...
+    'velocity', [0; 0], ...
+    'acceleration', [0; 0]);
 move_flag = 1; %move
+
+all_obstacle = [obstacle, wall]; %障害物のリスト
 
 robot_trajectory = [robot_x, robot_y]; %ロボットの軌跡
 
 %マップに障害物を割り当て（map, 障害物[転置(.')してn行２列にしている],確率占有値[?][0で消える、１で追加できる]）
-setOccupancy(occupancy_map, obstacle.', 1);
+setOccupancy(occupancy_map, obstacle.position.', 1);        % 動的障害物
+setOccupancy(occupancy_map, wall.position.', 1);    % 静的障害物（壁）
 % setOccupancy(occupancy_map,new_obstacle.',1);
 %s=ones(size(obstacle.')); %.'は転置 %obstacle.'と同じサイズで要素がすべて１の行列
 %setOccupancy(occupancy_map,obstacle.',s(:,1));%上のコードと同じ、要素それぞれに１をかけるか、１をまとめてかけるかの違い
@@ -159,7 +190,7 @@ plot(robot_x, robot_y, 'bo'); %スタート(ロボットの初期位置)
 %シンボリックとして定義（文字式の計算ができるようになる）
 syms x;
 syms y;
-% po = double(subs(grad(goal_x, goal_y, detected_obstacles, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y})); %subs(s,old,new) シンボリックsのoldの各要素をそれぞれnewに対応する要素で書き換え。
+% po = double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y})); %subs(s,old,new) シンボリックsのoldの各要素をそれぞれnewに対応する要素で書き換え。
 
 while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的地に着くまでループ (2点間のユークリッド距離)
     o_rb1 = [0 0];
@@ -169,6 +200,7 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     o_rb5 = [0 0];
     o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
     flag_rb = [0; 0; 0; 0; 0; 0]; %   左前　前　右前　左　右　どの方向かなど
+    detected_obstacles.position = [];
     %frag_rb(6)=0,1,4,5,7
     %0角度変更なし、1予測線の描画。４角度を左へ、5角度を右へ、7特別な角度変更
     %ロボットの現在の状況把握
@@ -198,23 +230,23 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     if ~isnan(scan1.Cartesian) % 障害物を読み取った時「isnan：NaN（読み取りがない）を１、それ以外を０」「scan1.Cartesian：rb1で読み取った値の直行座標」
         s1d = norm(scan1.Cartesian); %ロボットから障害物点までの距離
         s1r = atan(scan1.Cartesian(2) / scan1.Cartesian(1)); %障害物点がロボットを向いている方向からどの角度にあるか
-        so = size(detected_obstacles);
+        so = size(detected_obstacles.position);
 
         if obstacle_detection_flag == -1 %障害物の検出が完了し、障害物の座標が追加された
             o_rb1 = [s1d * cos(robot_heading + s1r) + robot_x, s1d * sin(robot_heading + s1r) + robot_y]; %ロボットから見た情報から座標系における位置を計算
-            detected_obstacles = [detected_obstacles; o_rb1]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb1]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(1) = 1;
             obstacle_detection_flag = 0;
         elseif so == [0 0] %oが空の時
             o_rb1 = [s1d * cos(robot_heading + s1r) + robot_x, s1d * sin(robot_heading + s1r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb1]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb1]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(1) = 1;
-        elseif min(sum(([(s1d * cos(robot_heading + s1r) + robot_x) .* ones([so(1), 1]), (s1d * sin(robot_heading + s1r) + robot_y) .* ones([so(1), 1])] - detected_obstacles) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
+        elseif min(sum(([(s1d * cos(robot_heading + s1r) + robot_x) .* ones([so(1), 1]), (s1d * sin(robot_heading + s1r) + robot_y) .* ones([so(1), 1])] - detected_obstacles.position) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
             %検知した障害物の限りなく近い箇所で障害物をまた検出して一か所に何個も障害物を検出するのを回避するための条件  %
             o_rb1 = [s1d * cos(robot_heading + s1r) + robot_x, s1d * sin(robot_heading + s1r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb1]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb1]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(1) = 1;
         end
@@ -227,22 +259,22 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     if ~isnan(scan2.Cartesian)
         s2d = norm(scan2.Cartesian);
         s2r = atan(scan2.Cartesian(2) / scan2.Cartesian(1));
-        so = size(detected_obstacles);
+        so = size(detected_obstacles.position);
 
         if obstacle_detection_flag == -1
             o_rb2 = [s2d * cos(robot_heading + s2r) + robot_x, s2d * sin(robot_heading + s2r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb2]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb2]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(2) = 1;
             obstacle_detection_flag = 0;
         elseif so == [0 0]
             o_rb2 = [s2d * cos(robot_heading + s2r) + robot_x, s2d * sin(robot_heading + s2r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb2]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb2]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(2) = 1;
-        elseif min(sum(([(s2d * cos(robot_heading + s2r) + robot_x) .* ones([so(1), 1]), (s2d * sin(robot_heading + s2r) + robot_y) .* ones([so(1), 1])] - detected_obstacles) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
+        elseif min(sum(([(s2d * cos(robot_heading + s2r) + robot_x) .* ones([so(1), 1]), (s2d * sin(robot_heading + s2r) + robot_y) .* ones([so(1), 1])] - detected_obstacles.position) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
             o_rb2 = [s2d * cos(robot_heading + s2r) + robot_x, s2d * sin(robot_heading + s2r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb2]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb2]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(2) = 1;
         end
@@ -254,22 +286,22 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     if ~isnan(scan3.Cartesian)
         s3d = norm(scan3.Cartesian);
         s3r = atan(scan3.Cartesian(2) / scan3.Cartesian(1));
-        so = size(detected_obstacles);
+        so = size(detected_obstacles.position);
 
         if obstacle_detection_flag == -1
             o_rb3 = [s3d * cos(robot_heading + s3r) + robot_x, s3d * sin(robot_heading + s3r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb3]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb3]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(3) = 1;
             obstacle_detection_flag = 0;
         elseif so == [0 0]
             o_rb3 = [s3d * cos(robot_heading + s3r) + robot_x, s3d * sin(robot_heading + s3r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb3]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb3]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(3) = 1;
-        elseif min(sum(([(s3d * cos(robot_heading + s3r) + robot_x) .* ones([so(1), 1]), (s3d * sin(robot_heading + s3r) + robot_y) .* ones([so(1), 1])] - detected_obstacles) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
+        elseif min(sum(([(s3d * cos(robot_heading + s3r) + robot_x) .* ones([so(1), 1]), (s3d * sin(robot_heading + s3r) + robot_y) .* ones([so(1), 1])] - detected_obstacles.position) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
             o_rb3 = [s3d * cos(robot_heading + s3r) + robot_x, s3d * sin(robot_heading + s3r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb3]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb3]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(3) = 1;
         end
@@ -281,22 +313,22 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     if ~isnan(scan4.Cartesian)
         s4d = norm(scan4.Cartesian);
         s4r = atan(scan4.Cartesian(2) / scan4.Cartesian(1));
-        so = size(detected_obstacles);
+        so = size(detected_obstacles.position);
 
         if obstacle_detection_flag == -1
             o_rb4 = [s4d * cos(robot_heading + s4r) + robot_x, s4d * sin(robot_heading + s4r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb4]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb4]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(4) = 1;
             obstacle_detection_flag = 0;
         elseif so == [0 0]
             o_rb4 = [s4d * cos(robot_heading + s4r) + robot_x, s4d * sin(robot_heading + s4r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb4]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb4]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(4) = 1;
-        elseif min(sum(([(s4d * cos(robot_heading + s4r) + robot_x) .* ones([so(1), 1]), (s4d * sin(robot_heading + s4r) + robot_y) .* ones([so(1), 1])] - detected_obstacles) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
+        elseif min(sum(([(s4d * cos(robot_heading + s4r) + robot_x) .* ones([so(1), 1]), (s4d * sin(robot_heading + s4r) + robot_y) .* ones([so(1), 1])] - detected_obstacles.position) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
             o_rb4 = [s4d * cos(robot_heading + s4r) + robot_x, s4d * sin(robot_heading + s4r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb4]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb4]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(4) = 1;
         end
@@ -312,22 +344,22 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         s5 = scan5.Cartesian;
         s5d = norm(scan5.Cartesian);
         s5r = atan(scan5.Cartesian(2) / scan5.Cartesian(1));
-        so = size(detected_obstacles);
+        so = size(detected_obstacles.position);
 
         if obstacle_detection_flag == -1
             o_rb5 = [s5d * cos(robot_heading + s5r) + robot_x, s5d * sin(robot_heading + s5r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb5]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb5]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(5) = 1;
             obstacle_detection_flag = 0;
         elseif so == [0 0]
             o_rb5 = [s5d * cos(robot_heading + s5r) + robot_x, s5d * sin(robot_heading + s5r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb5]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb5]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(5) = 1;
-        elseif min(sum(([(s5d * cos(robot_heading + s5r) + robot_x) .* ones([so(1), 1]), (s5d * sin(robot_heading + s5r) + robot_y) .* ones([so(1), 1])] - detected_obstacles) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
+        elseif min(sum(([(s5d * cos(robot_heading + s5r) + robot_x) .* ones([so(1), 1]), (s5d * sin(robot_heading + s5r) + robot_y) .* ones([so(1), 1])] - detected_obstacles.position) .^ 2, 2)) > [0.2 ^ 2 0.2 ^ 2]
             o_rb5 = [s5d * cos(robot_heading + s5r) + robot_x, s5d * sin(robot_heading + s5r) + robot_y];
-            detected_obstacles = [detected_obstacles; o_rb5]; %障害物の座標を格納
+            detected_obstacles.position = [detected_obstacles.position; o_rb5]; %障害物の座標を格納
             o_tmp = [o_rb1; o_rb2; o_rb3; o_rb4; o_rb5];
             flag_rb(5) = 1;
         end
@@ -339,31 +371,34 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     end
 
     if nnz(flag_rb) >= 1
-        isDynamicObstacleDetected = true;
         noDetectionTime = 0;
+        if ~isempty(detected_obstacles.position)
+            detected_obstacles = update_obstacle_dynamic_status(detected_obstacles, all_obstacle, robot_x, robot_y);
+            disp(detected_obstacles);
+        end
     elseif noDetectionTime > 10
-        isDynamicObstacleDetected = false;
-        detected_obstacles = [];
+        detected_obstacles.position = [];
     else
         noDetectionTime = noDetectionTime + 1;
     end
-    
-    if isDynamicObstacleDetected
+
+
+    if detected_obstacles.isDynamic
         % obstacleの各列とロボット位置との距離を計算
-        distances = sqrt((obstacle(1,:) - robot_x).^2 + (obstacle(2,:) - robot_y).^2);
+        distances = sqrt((obstacle.position(1,:) - robot_x).^2 + (obstacle.position(2,:) - robot_y).^2);
         % 最小距離のインデックスを取得
         [~, min_idx] = min(distances);
         % 最も近い障害物を取得（転置して行ベクトルにする）
-        latest_obstacle = obstacle(:, min_idx)';
+        latest_obstacle = obstacle.position(:, min_idx)';
         % disp(latest_obstacle);
-        % [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(detected_obstacles, prev_ob_pos, prev_ob_velocity, dt, steps,obstacle_velocity,obstacle_acceleration);
-        [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(latest_obstacle, prev_ob_pos, prev_predicted_pos,prev_ob_velocity, dt, obstacle_velocity, obstacle_acceleration);
+        % [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(detected_obstacles.position, prev_ob_pos, prev_ob_velocity, dt, steps,obstacle.velocity,obstacle.acceleration);
+        [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(latest_obstacle, prev_ob_pos, prev_predicted_pos,prev_ob_velocity, dt, obstacle.velocity, obstacle.acceleration);
         prev_ob_pos = current_pos;
         prev_ob_velocity = current_velocity;
         prev_predicted_pos = predicted_pos;
         if all(~isnan(predicted_pos))
-            % detected_obstacles = [detected_obstacles; predicted_pos]; %予測した位置を障害物リストに追加
-            detected_obstacles = predicted_pos;
+            % detected_obstacles.position = [detected_obstacles.position; predicted_pos]; %予測した位置を障害物リストに追加
+            detected_obstacles.position = predicted_pos;
             % 前回の予測点を削除
             if ~isempty(h_predicted) && isvalid(h_predicted)
                 delete(h_predicted);
@@ -375,10 +410,6 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         end
     end
 
-        % if ~isempty(detected_obstacles)
-        %     display('detected_obstacles:');
-        %     disp(detected_obstacles);
-        % end
 
     %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%        kokomade        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -435,11 +466,16 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         %plot(robot_x,robot_y,'rx');%redのx
     end
 
-    while flag_rb(6) ~= 0 %角度変更または予測線分の描画の必要あり。
-        fprintf("----- flag_rb reset -----\n")
-        data = 0;
-        %[robot_heading,robot_trajectory,detected_obstacles,o_tmp,robot_x,robot_y,temp_goal_x,temp_goal_y,~,time_step] = GoBehindTheWall(flag_rb,o_tmp,robot_heading,robot_x,robot_y,goal_x,goal_y,robot_trajectory,detected_obstacles,range_sensor_1,range_sensor_2,range_sensor_3,range_sensor_4,range_sensor_5,occupancy_map,time_step,data);
-        obstacle_weight = 0.1; %障害物の重みを大きくする
+    if detected_obstacles.isDynamic
+        obstacle_weight = 0.08;
+    else
+        % error("壁沿い走行");
+        obstacle_weight = 0.001;
+    end
+
+    if ~detected_obstacles.isDynamic && ~isempty(detected_obstacles.position) && nnz(flag_rb) >= 2 && min(sqrt((detected_obstacles.position(:,1) - robot_x).^2 + (detected_obstacles.position(:,2) - robot_y).^2)) < 0.5
+        [robot_heading, robot_trajectory, detected_obstacles.position, detected_obstacles_tmp, robot_x, robot_y, temp_goal_x, temp_goal_y, flag_d, time_step, obstacle.position] = GoBehindTheWall(flag_rb, o_tmp, robot_heading, robot_x, robot_y, goal_x, goal_y, robot_trajectory, detected_obstacles.position, range_sensor_1, range_sensor_2, range_sensor_3, range_sensor_4, range_sensor_5, occupancy_map, time_step, data, obstacle.velocity, obstacle.position, initial_robot_x, initial_robot_y);
+        % obstacle_weight = 0.001; % 壁沿い走行時の重み
         flag_d = 0;
         flag_rb = [0; 0; 0; 0; 0; 0];
     end
@@ -462,7 +498,7 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         if avoidance_flag == 1 %障害物回避の必要あり
             error("障害物回避の必要あり");
 
-            temp = normr(double(subs(grad(temp_goal_x, temp_goal_y, detected_obstacles, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12; %勾配ベクトルを正規化して0.12を乗算 %ベクトルの正規化は向きはそのままに大きさを1にすること
+            temp = normr(double(subs(grad(temp_goal_x, temp_goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12; %勾配ベクトルを正規化して0.12を乗算 %ベクトルの正規化は向きはそのままに大きさを1にすること
 
             if temp(2) > 0 %勾配ベクトルが上向き
                 robot_heading = acos(temp(1) / 0.12);
@@ -473,7 +509,7 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
             robot_x = robot_x + temp(1); %勾配ベクトル方向に進める
             robot_y = robot_y + temp(2);
             robot_trajectory = [robot_trajectory; robot_x, robot_y]; %gの末尾に移動先の座標を追加
-            % po = double(subs(grad(temp_goal_x, temp_goal_y, detected_obstacles, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y})); %勾配の再計算
+            % po = double(subs(grad(temp_goal_x, temp_goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y})); %勾配の再計算
             time_step = time_step + 1; %時間を進める
             plot(robot_trajectory(:, 1), robot_trajectory(:, 2), 'r'); %軌跡を描画
             drawnow; %mapに描画
@@ -487,7 +523,7 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
             end
 
             if norm([robot_x, robot_y] - [temp_goal_x, temp_goal_y]) <= 0.10 %仮想ゴールとの距離が0.1以下の時
-                %detected_obstacles=[];
+                %detected_obstacles.position=[];
                 avoidance_flag = 0; %障害物を回避した
                 obstacle_weight = 0.05; %重みを0.05にする
             end
@@ -497,12 +533,12 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
             %勾配ベクトルに沿って進める
 
 
-            if ~isempty(detected_obstacles)
-                fprintf('\n\n--------------  detected_obstacles: --------------\n');
-                disp(detected_obstacles);
+            if ~isempty(detected_obstacles.position)
+                fprintf('\n\n--------------  detected_obstacles.position: --------------\n');
+                disp(detected_obstacles.position);
                 fprintf('---------------------------------------------------\n\n\n')
             end
-            temp = normr(double(subs(grad(goal_x, goal_y, detected_obstacles, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12;
+            temp = normr(double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12;
 
             if temp(2) > 0
                 robot_heading = acos(temp(1) / 0.12);
@@ -513,11 +549,11 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
             robot_x = robot_x + temp(1);
             robot_y = robot_y + temp(2);
             robot_trajectory = [robot_trajectory; robot_x, robot_y];
-            % po = double(subs(grad(goal_x, goal_y, detected_obstacles, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}));
+            % po = double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}));
             time_step = time_step + 1;
 
             if norm([robot_x, robot_y] - [goal_x, goal_y]) <= 1 %ゴールとの距離が1以下の時
-                detected_obstacles = []; %障害物をリセット
+                detected_obstacles.position = []; %障害物をリセット
             end
 
             if time_step > 500
@@ -532,24 +568,19 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
     drawnow;
 
     % if nnz(flag_rb) <= 1
-    %     detected_obstacles = [];
+    %     detected_obstacles.position = [];
     % end
 
     %%%障害物を動かす
     if move_flag == 1
         %障害物を動かす幅
-        obstacle_velocity = obstacle_velocity + obstacle_acceleration * dt; %障害物の速度を更新
-        obstacle_mv = obstacle + obstacle_velocity * dt; %障害物を動かす
-
-        setOccupancy(occupancy_map, obstacle.', 0); %障害物を動かす前のobstacleを消す
-        setOccupancy(occupancy_map, obstacle_mv.', 1); %障害物を動した後のobstacleを追加する
-
+        setOccupancy(occupancy_map, obstacle.position.', 0); %障害物を動かす前のobstacleを消す
+        obstacle.velocity = obstacle.velocity + obstacle.acceleration * dt; %障害物の速度を更新
+        obstacle.position = obstacle.position + obstacle.velocity * dt; %障害物を動かす
+        setOccupancy(occupancy_map, obstacle.position.', 1); %障害物を動した後のobstacleを追加する
+        all_obstacle = [obstacle, wall]; %障害物のリストの更新
         % マップを再描画
         show(occupancy_map);
-
-        obstacle = obstacle_mv; % 障害物位置を更新
-        % fprintf('Obstacle moved to new position: (%.4f,%.4f) \n', obstacle(1), obstacle(2)); % 障害物の新しい位置を表示
-        % disp(obstacle);
 
         % 軌跡や目標位置の描画などの処理
         hold on;

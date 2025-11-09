@@ -9,3 +9,4 @@ DynamicObstacleAvoidanceは、動的な障害物回避アルゴリズムを実�
 
 ```bash
 matlab -batch "Main"
+matlab -nosplash -nodesktop -r "Main; disp('Press Enter to exit...'); pause;"
