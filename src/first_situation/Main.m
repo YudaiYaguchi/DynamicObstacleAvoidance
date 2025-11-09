@@ -82,27 +82,17 @@ distance_weight = 25; % (引力の重み) 大きくする → 引力ベクトル
 % 加速度がない時
 % distance_weight = 100;
 
-point = [0 0];
-radius = 36;
 avoidance_flag = 0; %1:障害物回避が必要。　0:通常の走行状態（目的地にまっすぐ進む）
 obstacle_detection_flag = 0; %0:障害物が検出されていない状態。　-1:障害物を検出して、障害物の座標が格納された状態。
-%frag_mv = 0;
 time_step = 1;
 detection_counter = 0;
 data = 0;
 
-% 加速度計算用の変数を初期化
-ob_prev = []; % 前回の障害物位置
-prev_ob_pos = [];
-prev_ob_velocity = [0; 0];
-prev_predicted_pos = [];
-% steps = 50; % Nステップ後の予測に使う
 dt = 1;
 noDetectionTime = 0;
 
 % 予測した位置を保存する変数
 predicted_pos = [];
-
 h_predicted = []; % 前回の予測点プロットを保持
 
 %距離センサ生成
@@ -146,13 +136,11 @@ obstacle = struct(...
     'velocity', obstacle_velocity, ...
     'acceleration', obstacle_acceleration);
 
-% new_obstacle = [x+6, obstacle_right_x.*ones(size(y))+6, fliplr(x)+6, obstacle_left_x.*ones(size(y))+6;
-%   (obstacle_bottom_y+2).*ones(size(x)), y+2, (obstacle_top_y+2).*ones(size(x)), fliplr(y)+2];
 
-% 静的障害物（壁）の定義：ゴールから2m手前、横幅6m
+% 静的障害物（壁）の定義
 wall_left_x = 2.5;    % 壁の左端
-wall_right_x = 8.5;   % 壁の右端（横幅6m）
-wall_bottom_y = 9.01; % 壁の下端（goal_y=12から2m手前=10、厚み0.01m）
+wall_right_x = 8.5;   % 壁の右端
+wall_bottom_y = 9.01; % 壁の下端
 wall_top_y = 9.00;   % 壁の上端
 
 x_wall = wall_left_x:0.01:wall_right_x;
@@ -166,7 +154,6 @@ wall = struct(...
     'isDynamic', false, ...
     'velocity', [0; 0], ...
     'acceleration', [0; 0]);
-move_flag = 1; %move
 
 all_obstacle = [obstacle, wall]; %障害物のリスト
 
@@ -175,11 +162,6 @@ robot_trajectory = [robot_x, robot_y]; %ロボットの軌跡
 %マップに障害物を割り当て（map, 障害物[転置(.')してn行２列にしている],確率占有値[?][0で消える、１で追加できる]）
 setOccupancy(occupancy_map, obstacle.position.', 1);        % 動的障害物
 setOccupancy(occupancy_map, wall.position.', 1);    % 静的障害物（壁）
-% setOccupancy(occupancy_map,new_obstacle.',1);
-%s=ones(size(obstacle.')); %.'は転置 %obstacle.'と同じサイズで要素がすべて１の行列
-%setOccupancy(occupancy_map,obstacle.',s(:,1));%上のコードと同じ、要素それぞれに１をかけるか、１をまとめてかけるかの違い
-%inflate(occupancy_map,0.1); %障害物を膨らませる
-
 show(occupancy_map); %mapの描画
 hold on %mapの固定
 title('Field');
@@ -190,7 +172,6 @@ plot(robot_x, robot_y, 'bo'); %スタート(ロボットの初期位置)
 %シンボリックとして定義（文字式の計算ができるようになる）
 syms x;
 syms y;
-% po = double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y})); %subs(s,old,new) シンボリックsのoldの各要素をそれぞれnewに対応する要素で書き換え。
 
 while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的地に着くまでループ (2点間のユークリッド距離)
     o_rb1 = [0 0];
@@ -370,55 +351,11 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
 
     end
 
-    if nnz(flag_rb) >= 1
-        noDetectionTime = 0;
-        if ~isempty(detected_obstacles.position)
-            detected_obstacles = update_obstacle_dynamic_status(detected_obstacles, all_obstacle, robot_x, robot_y);
-            disp(detected_obstacles);
-        end
-    elseif noDetectionTime > 10
-        detected_obstacles.position = [];
-    else
-        noDetectionTime = noDetectionTime + 1;
-    end
-
-
-    if detected_obstacles.isDynamic
-        % obstacleの各列とロボット位置との距離を計算
-        distances = sqrt((obstacle.position(1,:) - robot_x).^2 + (obstacle.position(2,:) - robot_y).^2);
-        % 最小距離のインデックスを取得
-        [~, min_idx] = min(distances);
-        % 最も近い障害物を取得（転置して行ベクトルにする）
-        latest_obstacle = obstacle.position(:, min_idx)';
-        % disp(latest_obstacle);
-        % [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(detected_obstacles.position, prev_ob_pos, prev_ob_velocity, dt, steps,obstacle.velocity,obstacle.acceleration);
-        [current_pos, predicted_pos, current_velocity, current_acceleration] = predict_obstacle_position(latest_obstacle, prev_ob_pos, prev_predicted_pos,prev_ob_velocity, dt, obstacle.velocity, obstacle.acceleration);
-        prev_ob_pos = current_pos;
-        prev_ob_velocity = current_velocity;
-        prev_predicted_pos = predicted_pos;
-        if all(~isnan(predicted_pos))
-            % detected_obstacles.position = [detected_obstacles.position; predicted_pos]; %予測した位置を障害物リストに追加
-            detected_obstacles.position = predicted_pos;
-            % 前回の予測点を削除
-            if ~isempty(h_predicted) && isvalid(h_predicted)
-                delete(h_predicted);
-            end
-            % 新しい予測位置を描画
-            h_predicted = plot(predicted_pos(:,1), predicted_pos(:,2), ...
-                'r-', ...       % 赤色の実線
-                'LineWidth', 2);% 太さ
-        end
-    end
-
-
-    %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%        kokomade        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     if nnz(flag_rb) >= 2 && norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.5 %障害物が2個以上検知した。かつロボットとゴールの距離が0.5以上離れている（ゴールしていない）。
         obstacle_detection_flag = 0; %0:障害物が検出されていない状態。　-1:障害物を検出して、障害物の座標が格納された状態。
         detection_counter = 0;
 
         if robot_x == goal_x %ゴールとロボットのx座標が同じとき
-            %plot([robot_x robot_x],[robot_y goal_y]);
             tilt_goal = 0;
 
             if robot_y < goal_y %ゴールの真下にいるから
@@ -461,28 +398,51 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         detection_counter = 0;
     end
 
-    if flag_rb(6) == 0
-        %obstacle_weight = 0.05;
-        %plot(robot_x,robot_y,'rx');%redのx
+
+    if nnz(flag_rb) >= 1
+        noDetectionTime = 0;
+        if ~isempty(detected_obstacles.position)
+            detected_obstacles = update_obstacle_dynamic_status(detected_obstacles, all_obstacle, robot_x, robot_y);
+        end
+    elseif noDetectionTime > 10
+        detected_obstacles.position = [];
+    else
+        noDetectionTime = noDetectionTime + 1;
     end
 
-    if detected_obstacles.isDynamic
+    if detected_obstacles.isDynamic % 動的障害物の重み付け
         obstacle_weight = 0.08;
-    else
-        % error("壁沿い走行");
+    elseif ~detected_obstacles.isDynamic % 静的障害物の重み付け
         obstacle_weight = 0.001;
     end
 
+    % 動的障害物の予測処理　
+    if detected_obstacles.isDynamic
+        distances = sqrt((obstacle.position(1,:) - robot_x).^2 + (obstacle.position(2,:) - robot_y).^2); % obstacleの各列とロボット位置との距離を計算
+        [~, min_idx] = min(distances); % 最小距離のインデックスを取得
+        latest_obstacle = obstacle.position(:, min_idx)'; % 最も近い障害物を取得（転置して行ベクトルにする）
+        predicted_pos = predict_obstacle_position(latest_obstacle, dt, obstacle.velocity, obstacle.acceleration);
+
+        if all(~isnan(predicted_pos))
+            % detected_obstacles.position = [detected_obstacles.position; predicted_pos]; %予測した位置を障害物リストに追加
+            detected_obstacles.position = predicted_pos;
+            % 前回の予測点を削除
+            if ~isempty(h_predicted) && isvalid(h_predicted)
+                delete(h_predicted);
+            end
+            % 新しい予測位置を描画
+            h_predicted = plot(predicted_pos(:,1), predicted_pos(:,2), ...
+                'r-', ...       % 赤色の実線
+                'LineWidth', 2);% 太さ
+        end
+    end
+
+    % 静的障害物回避　壁沿い走行
     if ~detected_obstacles.isDynamic && ~isempty(detected_obstacles.position) && nnz(flag_rb) >= 2 && min(sqrt((detected_obstacles.position(:,1) - robot_x).^2 + (detected_obstacles.position(:,2) - robot_y).^2)) < 0.5
-        [robot_heading, robot_trajectory, detected_obstacles.position, detected_obstacles_tmp, robot_x, robot_y, temp_goal_x, temp_goal_y, flag_d, time_step, obstacle.position] = GoBehindTheWall(flag_rb, o_tmp, robot_heading, robot_x, robot_y, goal_x, goal_y, robot_trajectory, detected_obstacles.position, range_sensor_1, range_sensor_2, range_sensor_3, range_sensor_4, range_sensor_5, occupancy_map, time_step, data, obstacle.velocity, obstacle.position, initial_robot_x, initial_robot_y);
-        % obstacle_weight = 0.001; % 壁沿い走行時の重み
-        flag_d = 0;
-        flag_rb = [0; 0; 0; 0; 0; 0];
+        [robot_heading, robot_trajectory, detected_obstacles.position, detected_obstacles_tmp, robot_x, robot_y, temp_goal_x, temp_goal_y, ~, time_step, obstacle.position] = GoBehindTheWall(flag_rb, o_tmp, robot_heading, robot_x, robot_y, goal_x, goal_y, robot_trajectory, detected_obstacles.position, range_sensor_1, range_sensor_2, range_sensor_3, range_sensor_4, range_sensor_5, occupancy_map, time_step, data, obstacle.velocity, obstacle.position, initial_robot_x, initial_robot_y);
     end
 
     if obstacle_detection_flag == -1 %ロボットを前に進める。 0:障害物が検出されていない状態。　-1:障害物を検出して、障害物の座標が格納された状態。
-        %frag_mv = 0;
-
         robot_x = robot_x + cos(robot_heading) * 0.1;
         robot_y = robot_y + sin(robot_heading) * 0.1;
         robot_trajectory = [robot_trajectory; robot_x, robot_y];
@@ -492,104 +452,53 @@ while norm([robot_x, robot_y] - [goal_x, goal_y]) > 0.10 %ロボットが目的�
         goal_direction = atan2(goal_y - robot_y, goal_x - robot_x);
         robot_heading = goal_direction;
     else
+        %勾配ベクトルに沿って進める
+        if ~isempty(detected_obstacles.position)
+            fprintf('\n\n--------------  detected_obstacles.position: --------------\n');
+            disp(detected_obstacles.position);
+            fprintf('---------------------------------------------------\n\n\n')
+        end
+        potential_force = normr(double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12;
 
-        % 障害物回避後にゴールの方向を再確認するロジック
-
-        if avoidance_flag == 1 %障害物回避の必要あり
-            error("障害物回避の必要あり");
-
-            temp = normr(double(subs(grad(temp_goal_x, temp_goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12; %勾配ベクトルを正規化して0.12を乗算 %ベクトルの正規化は向きはそのままに大きさを1にすること
-
-            if temp(2) > 0 %勾配ベクトルが上向き
-                robot_heading = acos(temp(1) / 0.12);
-            else %勾配ベクトルが下向き
-                robot_heading = -acos(temp(1) / 0.12);
-            end
-
-            robot_x = robot_x + temp(1); %勾配ベクトル方向に進める
-            robot_y = robot_y + temp(2);
-            robot_trajectory = [robot_trajectory; robot_x, robot_y]; %gの末尾に移動先の座標を追加
-            % po = double(subs(grad(temp_goal_x, temp_goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y})); %勾配の再計算
-            time_step = time_step + 1; %時間を進める
-            plot(robot_trajectory(:, 1), robot_trajectory(:, 2), 'r'); %軌跡を描画
-            drawnow; %mapに描画
-
-            if time_step > 300 %時間が300を超えたら停留したとみなしてプログラムを止める
-                break;
-            end
-
-            if norm([robot_x, robot_y] - [temp_goal_x, temp_goal_y]) <= 0.50 %仮想ゴールとの距離が0.5以下の時
-                obstacle_weight = 0; %重みを0にする
-            end
-
-            if norm([robot_x, robot_y] - [temp_goal_x, temp_goal_y]) <= 0.10 %仮想ゴールとの距離が0.1以下の時
-                %detected_obstacles.position=[];
-                avoidance_flag = 0; %障害物を回避した
-                obstacle_weight = 0.05; %重みを0.05にする
-            end
-
-            continue; %uhileの最初
-        else %通常の走行
-            %勾配ベクトルに沿って進める
-
-
-            if ~isempty(detected_obstacles.position)
-                fprintf('\n\n--------------  detected_obstacles.position: --------------\n');
-                disp(detected_obstacles.position);
-                fprintf('---------------------------------------------------\n\n\n')
-            end
-            temp = normr(double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}))) .* 0.12;
-
-            if temp(2) > 0
-                robot_heading = acos(temp(1) / 0.12);
-            else
-                robot_heading = -acos(temp(1) / 0.12);
-            end
-
-            robot_x = robot_x + temp(1);
-            robot_y = robot_y + temp(2);
-            robot_trajectory = [robot_trajectory; robot_x, robot_y];
-            % po = double(subs(grad(goal_x, goal_y, detected_obstacles.position, obstacle_weight, distance_weight), {x y}, {robot_x, robot_y}));
-            time_step = time_step + 1;
-
-            if norm([robot_x, robot_y] - [goal_x, goal_y]) <= 1 %ゴールとの距離が1以下の時
-                detected_obstacles.position = []; %障害物をリセット
-            end
-
-            if time_step > 500
-                break;
-            end
-
+        if potential_force(2) > 0
+            robot_heading = acos(potential_force(1) / 0.12);
+        else
+            robot_heading = -acos(potential_force(1) / 0.12);
         end
 
+        robot_x = robot_x + potential_force(1);
+        robot_y = robot_y + potential_force(2);
+        robot_trajectory = [robot_trajectory; robot_x, robot_y];
+
+        time_step = time_step + 1;
+
+        if norm([robot_x, robot_y] - [goal_x, goal_y]) <= 1 %ゴールとの距離が1以下の時
+            detected_obstacles.position = []; %障害物をリセット
+        end
+
+        if time_step > 500
+            break;
+        end
     end
 
     plot(robot_trajectory(:, 1), robot_trajectory(:, 2), 'b'); %軌跡を描画
     drawnow;
 
-    % if nnz(flag_rb) <= 1
-    %     detected_obstacles.position = [];
-    % end
-
     %%%障害物を動かす
-    if move_flag == 1
-        %障害物を動かす幅
-        setOccupancy(occupancy_map, obstacle.position.', 0); %障害物を動かす前のobstacleを消す
-        obstacle.velocity = obstacle.velocity + obstacle.acceleration * dt; %障害物の速度を更新
-        obstacle.position = obstacle.position + obstacle.velocity * dt; %障害物を動かす
-        setOccupancy(occupancy_map, obstacle.position.', 1); %障害物を動した後のobstacleを追加する
-        all_obstacle = [obstacle, wall]; %障害物のリストの更新
-        % マップを再描画
-        show(occupancy_map);
+    setOccupancy(occupancy_map, obstacle.position.', 0); %障害物を動かす前のobstacleを消す
+    obstacle.velocity = obstacle.velocity + obstacle.acceleration * dt; %障害物の速度を更新
+    obstacle.position = obstacle.position + obstacle.velocity * dt; %障害物を動かす
+    setOccupancy(occupancy_map, obstacle.position.', 1); %障害物を動した後のobstacleを追加する
+    all_obstacle = [obstacle, wall]; %障害物のリストの更新
+    % マップを再描画
+    show(occupancy_map);
 
-        % 軌跡や目標位置の描画などの処理
-        hold on;
-        plot(robot_trajectory(:, 1), robot_trajectory(:, 2), 'b');
-        plot(goal_x, goal_y, 'ro'); % ゴール
-        plot(initial_robot_x, initial_robot_y, 'bo'); % スタート
-
-        plot(robot_x, robot_y, 'bo'); % robot
-    end
+    % 軌跡や目標位置の描画などの処理
+    hold on;
+    plot(robot_trajectory(:, 1), robot_trajectory(:, 2), 'b');
+    plot(goal_x, goal_y, 'ro'); % ゴール
+    plot(initial_robot_x, initial_robot_y, 'bo'); % スタート
+    plot(robot_x, robot_y, 'bo'); % robot
 
     drawnow;
 end
